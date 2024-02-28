@@ -830,7 +830,7 @@ class Zero1to3StableDiffusionPipeline(DiffusionPipeline):
             list of `bool`s denoting whether the corresponding generated image likely represents "not-safe-for-work"
             (nsfw) content, according to the `safety_checker`.
         """
-        # 0. Default height and width to unet
+        # 0. Default height and width to unet: both are 256
         height = height or self.unet.config.sample_size * self.vae_scale_factor
         width = width or self.unet.config.sample_size * self.vae_scale_factor
         assert T_out == poses[0][0].shape[1]
@@ -855,8 +855,8 @@ class Zero1to3StableDiffusionPipeline(DiffusionPipeline):
 
         # 3. Encode input image with pose as prompt
         # prompt_embeds = self._encode_image_with_pose(prompt_imgs, poses, device, num_images_per_prompt, do_classifier_free_guidance, t_in)
-        prompt_embeds = self._encode_image(prompt_imgs, device, num_images_per_prompt, do_classifier_free_guidance)
-        prompt_embeds = einops.rearrange(prompt_embeds, '(b t) l c -> b (t l) c', t=T_in)
+        prompt_embeds = self._encode_image(prompt_imgs, device, num_images_per_prompt, do_classifier_free_guidance) # encode image [2, 49, 768], first part for CFG, second part for ConvNext Embedding
+        prompt_embeds = einops.rearrange(prompt_embeds, '(b t) l c -> b (t l) c', t=T_in) # move num images with the token length
 
         if do_classifier_free_guidance:
             [pose_out, pose_out_inv], [pose_in, pose_in_inv] = poses
@@ -872,7 +872,7 @@ class Zero1to3StableDiffusionPipeline(DiffusionPipeline):
 
         # 5. Prepare latent variables
         latents = self.prepare_latents(
-            batch_size // T_in * T_out * num_images_per_prompt, # todo use t_out
+            batch_size // T_in * T_out * num_images_per_prompt, # todo use t_out; How many latents to generate. batch_size is image shape, thus fed with [batchsize * T_in, 3, 256, 256], needs to // T_in to get the real batch size
             4,
             height,
             width,
@@ -880,7 +880,7 @@ class Zero1to3StableDiffusionPipeline(DiffusionPipeline):
             device,
             generator,
             latents,
-        )# todo same init noise along T?
+        )# todo same init noise along T? # [BxT_out, 4, 32, 32]
 
 
         # 7. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline

@@ -1007,7 +1007,7 @@ class XFormersAttnProcessor:
         encoder_hidden_states: Optional[torch.FloatTensor] = None,
         attention_mask: Optional[torch.FloatTensor] = None,
         temb: Optional[torch.FloatTensor] = None,
-        posemb: Optional = None,
+        posemb: Optional = None, # camera pose embedding; 
     ):
         residual = hidden_states
 
@@ -1025,7 +1025,7 @@ class XFormersAttnProcessor:
             self_attn = encoder_hidden_states is None  # check if self attn or cross attn
             [p_out, p_out_inv], [p_in, p_in_inv] = posemb
             t_out, t_in = p_out.shape[1], p_in.shape[1]  # t size
-            hidden_states = einops.rearrange(hidden_states, '(b t_out) l d -> b (t_out l) d', t_out=t_out)
+            hidden_states = einops.rearrange(hidden_states, '(b t_out) l d -> b (t_out l) d', t_out=t_out) # performs the reshape from [(bxm, HxW, C) to (b, mxHxW, C)],  thus m views as well as HW can attent with each other
 
         batch_size, key_tokens, _ = (
             hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
@@ -1056,6 +1056,12 @@ class XFormersAttnProcessor:
 
 
         # apply 6DoF, todo now only for xformer processor
+        # for the camera pose embedding:
+        # if do the self-attention, which means all are m target views who attend to each other
+        # apply CaPE with out pose on the query, key because they all mapped from [B, MxHxW, C] by linear layers
+
+        # if do the cross-attention, which means all are m target views who attends with n source views
+        # apply CaPE with out pose on the query, and CaPE with in pose on the key/ We want to find the correspondence between the target and source views
         if posemb is not None:
             p_out_inv = einops.repeat(p_out_inv, 'b t_out f g -> b (t_out l) f g', l=query.shape[1] // t_out)  # query shape
             if self_attn:
