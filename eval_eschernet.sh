@@ -16,9 +16,9 @@ pretrained_model="kxic/eschernet-6dof"
 # TODO ###################  Chose data type  ##########################
 
 # demo
-data_type="GSO25"
-T_ins=(1 2 3 5 10)
-data_dir="./demo/GSO30"
+# data_type="GSO25"
+# T_ins=(1)
+# data_dir="./demo/GSO30"
 
 ## GSO
 #data_type="GSO25" # GSO25, GSO3D, GSO100, NeRF, RTMV
@@ -36,9 +36,9 @@ data_dir="./demo/GSO30"
 #data_dir="/home/xin/data/nerf/nerf_synthetic"
 
 ## Real World Franka Recordings
-#data_type="Franka"
-#T_ins=(5)
-#data_dir="/home/xin/data/EscherNet/Data/Franka16/"
+data_type="Franka"
+T_ins=(1)
+data_dir="./demo/Franka16/"
 
 ## MVDream, 4 views to 100
 #data_type='MVDream'

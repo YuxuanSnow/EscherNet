@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/eval_smpldv1.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--pretrained_model_name_or_path", "kxic/eschernet-6dof",
+                "--data_dir", "./demo/GSO30",
+                "--data_type", "GSO25",
+                "--cape_type", "6DoF",
+                "--T_in", "1"
+            ]
+        }
+    ]
+}

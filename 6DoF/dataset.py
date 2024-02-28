@@ -137,12 +137,12 @@ class ObjaverseData(Dataset):
                 input_im = self.process_im(self.load_im(os.path.join(filename, '%03d.png' % index_input), color))
                 input_ims.append(input_im)
                 input_RT = np.load(os.path.join(filename, '%03d.npy' % index_input))
-                cond_Ts.append(self.get_pose(np.concatenate([input_RT[:3, :], np.array([[0, 0, 0, 1]])], axis=0)))
+                cond_Ts.append(self.get_pose(np.concatenate([input_RT[:3, :], np.array([[0, 0, 0, 1]])], axis=0))) # use absolute pose
             for i, index_target in enumerate(index_targets):
                 target_im = self.process_im(self.load_im(os.path.join(filename, '%03d.png' % index_target), color))
                 target_ims.append(target_im)
                 target_RT = np.load(os.path.join(filename, '%03d.npy' % index_target))
-                target_Ts.append(self.get_pose(np.concatenate([target_RT[:3, :], np.array([[0, 0, 0, 1]])], axis=0)))
+                target_Ts.append(self.get_pose(np.concatenate([target_RT[:3, :], np.array([[0, 0, 0, 1]])], axis=0))) # use absolute pose
         except:
             print('error loading data ', filename)
             filename = os.path.join(self.root_dir, '0a01f314e2864711aa7e33bace4bd8c8')  # this one we know is valid
@@ -155,12 +155,12 @@ class ObjaverseData(Dataset):
                 input_im = self.process_im(self.load_im(os.path.join(filename, '%03d.png' % index_input), color))
                 input_ims.append(input_im)
                 input_RT = np.load(os.path.join(filename, '%03d.npy' % index_input))
-                cond_Ts.append(self.get_pose(np.concatenate([input_RT[:3, :], np.array([[0, 0, 0, 1]])], axis=0)))
+                cond_Ts.append(self.get_pose(np.concatenate([input_RT[:3, :], np.array([[0, 0, 0, 1]])], axis=0))) 
             for i, index_target in enumerate(index_targets):
                 target_im = self.process_im(self.load_im(os.path.join(filename, '%03d.png' % index_target), color))
                 target_ims.append(target_im)
                 target_RT = np.load(os.path.join(filename, '%03d.npy' % index_target))
-                target_Ts.append(self.get_pose(np.concatenate([target_RT[:3, :], np.array([[0, 0, 0, 1]])], axis=0)))
+                target_Ts.append(self.get_pose(np.concatenate([target_RT[:3, :], np.array([[0, 0, 0, 1]])], axis=0))) 
 
         # stack to batch
         data['image_input'] = torch.stack(input_ims, dim=0)

@@ -234,8 +234,8 @@ def main(args):
     else:
         raise NotImplementedError
 
-    T_in = args.T_in
-    OUTPUT_DIR= f"logs_{CaPE_TYPE}/{DATA_TYPE}/N{T_in}M{T_out}"
+    T_in = args.T_in                                                         # num input view
+    OUTPUT_DIR= f"logs_{CaPE_TYPE}/{DATA_TYPE}/N{T_in}M{T_out}"              # num output view
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # get all folders in DATA_DIR
@@ -331,7 +331,7 @@ def main(args):
             angles_in = []
             for polar in [90]:  # 1
                 for azimu in np.arange(0, 360, 90):  # 4
-                    angles_in.append(np.array([azimu, polar]))
+                    angles_in.append(np.array([azimu, polar])) # what does the polar mean here? Why polar is 90?
             assert T_in == len(angles_in)
             xyzs, angles_out = get_archimedean_spiral(radius, T_out)
             origin = np.array([0, 0, 0])
@@ -515,10 +515,10 @@ def main(args):
             pose_out_inv = torch.from_numpy(pose_out_inv).to(device).to(weight_dtype).unsqueeze(0)
 
 
-        pose_in = torch.from_numpy(pose_in).to(device).to(weight_dtype).unsqueeze(0)
-        pose_out = torch.from_numpy(pose_out).to(device).to(weight_dtype).unsqueeze(0)
+        pose_in = torch.from_numpy(pose_in).to(device).to(weight_dtype).unsqueeze(0) # [B, T_in, 4, 4]
+        pose_out = torch.from_numpy(pose_out).to(device).to(weight_dtype).unsqueeze(0)  # [B, T_out, 4, 4]
 
-        input_image = einops.rearrange(input_image, "b t c h w -> (b t) c h w")
+        input_image = einops.rearrange(input_image, "b t c h w -> (b t) c h w") # [B*T_in, C, H, W]: does this mean in training the same batch shares the self attention? Or it will be shaped back later?
         if len(gt_image)>0:
             gt_image = einops.rearrange(gt_image, "b t c h w -> (b t) c h w")
         assert T_in == input_image.shape[0]

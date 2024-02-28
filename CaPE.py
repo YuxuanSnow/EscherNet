@@ -12,8 +12,8 @@ class CaPE_6DoF:
         :param P: 4x4 transformation matrix
         :return: rotated feature f by pose P: f@P
         """
-        f = einops.rearrange(f, '... (d k) -> ... d k', k=4)
-        return einops.rearrange(f@P, '... d k -> ... (d k)', k=4)
+        f = einops.rearrange(f, '... (d k) -> ... d k', k=4) # before [batch size, num image * len token, dimension]; after [batch size, num image * len token, dimension / 4, 4]
+        return einops.rearrange(f@P, '... d k -> ... (d k)', k=4) # 
 
     def attn_with_CaPE(self, f1, f2, p1, p2):
         """
@@ -26,13 +26,16 @@ class CaPE_6DoF:
         :param p2: [b, t, 4, 4]
         :return: attention score: q@k.T
         """
-        l = f1.shape[1] // p1.shape[1]
+        l = f1.shape[1] // p1.shape[1] # token length
         assert f1.shape[1] // p1.shape[1] == f2.shape[1] // p2.shape[1]
-        p1_invT = einops.repeat(torch.inverse(p1).permute(0, 1, 3, 2), 'b t m n -> b (t l) m n', l=l)  # f1 [b, l*t1, d]
-        query = self.cape_embed(f1, p1_invT)  # [b, l*t1, d] query: f1 @ (p1)^(-T), transpose the last two dim
+        p1_invT = einops.repeat(torch.inverse(p1).permute(0, 1, 3, 2), 'b t m n -> b (t l) m n', l=l)  # f1 [b, l*t1, d], it's the query thus inverse T
+        query = self.cape_embed(f1, p1_invT)  # [b, l*t1, d] query: f1 @ (p1)^(-T), transpose the last two dim; 
         p2_copy = einops.repeat(p2, 'b t m n -> b (t l) m n', l=l) # f2 [b, l*t2, d]
         key = self.cape_embed(f2, p2_copy)  # [b, l*t2, d] key: f2 @ p2
-        att = query @ key.permute(0, 2, 1)  # [b, l*t1, l*t2] attention: query@key^T
+        att = query @ key.permute(0, 2, 1)  # [b, l*t1, l*t2] attention: query@key^T, [batch size, num image * len token, dimension]
+        # query shape: [batch size, num target image * len token, dimension], [6, 30, 16]
+        # key shape: [batch size, num reference image * len token, dimension], [6, 50, 16]
+        # att shape: [batch size, num target image * len token, num reference image * len token], [6, 30, 50]
         return att
 
 
@@ -65,25 +68,30 @@ d = 16  # dim of token feature, need to mod 4 in this case
 assert d % 4 == 0
 
 # random init query and key
-f1 = torch.rand(bs, t1, l, d)     # query
-f2 = torch.rand(bs, t2, l, d)     # key
-f1 = einops.rearrange(f1, 'b t l d -> b (t l) d')
-f2 = einops.rearrange(f2, 'b t l d -> b (t l) d')
+f1 = torch.rand(bs, t1, l, d)     # query, [bs, target views, token len, token dim]
+f2 = torch.rand(bs, t2, l, d)     # key, [bs, reference views, token len, token dim]: target views and reference views can be different
+f1 = einops.rearrange(f1, 'b t l d -> b (t l) d') # [bs, target views x token len, token dim]
+f2 = einops.rearrange(f2, 'b t l d -> b (t l) d') # [bs, reference views x token len, token dim]
 
 # random init pose p1, p2, delta_p, [bs, t, 4, 4]
 p1 = random_6dof_pose(bs, t1)   # [bs, t1, 4, 4]
 p2 = random_6dof_pose(bs, t2)   # [bs, t2, 4, 4]
-p_delta = random_6dof_pose(bs, 1)   # [bs, 1, 4, 4]
+p_delta = random_6dof_pose(bs, 1)   # [bs, 1, 4, 4], any delta transformation in 6DoF
 # delta p is identical to p1 and p2 in each batch
-p1_delta = einops.repeat(p_delta, 'b 1 m n -> b (1 t) m n', t=t1//1)
-p2_delta = einops.repeat(p_delta, 'b 1 m n -> b (1 t) m n', t=t2//1)
+p1_delta = einops.repeat(p_delta, 'b 1 m n -> b (1 t) m n', t=t1//1) # [bs, t1, 4, 4], each target view has one delta pose
+p2_delta = einops.repeat(p_delta, 'b 1 m n -> b (1 t) m n', t=t2//1) # [bs, t2, 4, 4], each reference view has one delta pose
 
 # run attention with CaPE 6DoF
 cape_6dof = CaPE_6DoF()
 # att
-att = cape_6dof.attn_with_CaPE(f1, f2, p1, p2)
+att = cape_6dof.attn_with_CaPE(f1, f2, p1, p2) 
 # att_delta
-att_delta = cape_6dof.attn_with_CaPE(f1, f2, p1@p1_delta, p2@p2_delta)
+att_delta = cape_6dof.attn_with_CaPE(f1, f2, p1@p1_delta, p2@p2_delta) # add small purturbation to both camera poses. The relative camera transpose should be the same
+
+# randomly get one view about the camera poses
+rel_pose = torch.inverse(p1[:, 0, :, :])@p2[:, 0, :, :]
+rel_pose_delta = torch.inverse(p1[:, 0, :, :]@p1_delta[:, 0, :, :])@(p2[:, 0, :, :]@p2_delta[:, 0, :, :])
+assert torch.allclose(rel_pose, rel_pose_delta, 1e-3)
 
 # condition: att score should be the same i.e. non effect from any delta_p
 assert torch.allclose(att, att_delta, 1e-3)
